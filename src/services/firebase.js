@@ -7,12 +7,12 @@ import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCyi6YojBXlR5sOtbfYGvL50R40lj90wRU",
-  authDomain: "knot-spot.firebaseapp.com",
-  projectId: "knot-spot",
-  storageBucket: "knot-spot.firebasestorage.app",
-  messagingSenderId: "443564545064",
-  appId: "1:443564545064:web:de9dfe9a730fd26b9ad11d"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
