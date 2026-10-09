@@ -6,6 +6,7 @@ import Patterns from "./pages/Patterns";
 import YarnStash from "./pages/YarnStash";
 import ProgressTracker from "./pages/ProgressTracker";
 import AIInsights from "./pages/AIInsights";
+import UploadPattern from "./pages/UploadPattern";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/yarn" element={<YarnStash />} />
         <Route path="/progress" element={<ProgressTracker />} />
         <Route path="/ai" element={<AIInsights />} />
+        <Route path="/upload" element={<UploadPattern />} />
       </Routes>
     </Router>
   );
