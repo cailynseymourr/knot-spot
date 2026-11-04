@@ -7,6 +7,9 @@ function UploadPattern() {
   // ------------------------------------------------------------
   const [patternName, setPatternName] = useState("");
   const [file, setFile] = useState(null);
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [youtubeLink, setYoutubeLink] = useState("")
 
   // ------------------------------------------------------------
   // HANDLES FILE UPLOAD
@@ -76,6 +79,94 @@ function UploadPattern() {
         }}
       />
 
+      {/*DESCRIPTION */}
+      <label
+        style={{
+          display: "block",
+          marginBottom: "10px",
+          fontWeight: "bold"
+        }}
+      >
+        Pattern Description
+      </label>
+
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Describe your pattern..."
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+          border: "1px solid #ccc",
+          minHeight: "100px"
+        }}
+      />
+
+      {/* CATEGORY */}
+      <label
+        style={{
+          display: "block",
+          marginBottom: "10px",
+          fontWeight: "bold"
+        }}
+      >
+        Category
+      </label>
+      <select
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+          border: "1px solid #ccc"
+        }}
+      >
+        <option value="">Select Category</option>
+        <option value="Blanket">Blanket</option>
+        <option value="Scarf">Scarf</option>
+        <option value="Hat">Hat</option>
+        <option value="Amigurumi">Amigurumi</option>
+        <option value="Sweater">Sweater</option>
+        <option value="Home Decor">Home Decor</option>
+      </select>
+
+      {/* YOUTUBE LINK */}
+      <label
+        style={{
+          display: "block",
+          marginBottom: "10px",
+          fontWeight: "bold"
+        }}
+      >
+        YouTube Tutorial Link
+      </label>
+
+      <input
+        type="text"
+        value={youtubeLink}
+        onChange={(e) => setYoutubeLink(e.target.value)}
+        placeholder="Paste YouTube tutorial link here"
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+          border: "1px solid #ccc"
+        }}
+      />
+
+      {/* FILE UPLOAD */}
+      <label
+        style={{
+          display: "block",
+          marginBottom: "10px",
+          fontWeight: "bold"
+        }}
+      ></label>
       {/* --------------------------------------------------------
           FILE UPLOAD INPUT
           You can style this or replace it with a custom upload UI.

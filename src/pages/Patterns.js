@@ -1,28 +1,33 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AddPatternMenu from "../components/AddPatternMenu";
 
 function Patterns() {
   const navigate = useNavigate();
+  const [showMenu, setShowMenu] = useState(false);
+
   // ------------------------------------------------------------
   // PATTERN DATA (placeholder until Firebase is connected)
   // You will replace this with real data later.
   // ------------------------------------------------------------
   const [patterns, setPatterns] = useState([
+    
     {
       id: 1,
-      name: "Pattern #1",               // Pattern name shown in dropdown header
+      name: "Granny Square Blanket",               // Pattern name shown in dropdown header
       description: "Short description", // Shown when dropdown opens
       details: "More detailed info",    // Shown when dropdown opens
       open: false                       // Controls dropdown open/close
     },
     {
       id: 2,
-      name: "Pattern #2",
+      name: "Ocean Curtain",
       description: "Another description",
       details: "More details here",
       open: false
     }
+  
   ]);
 
   // ------------------------------------------------------------
@@ -78,10 +83,12 @@ function Patterns() {
           cursor: "pointer",
           boxShadow: "0 4px 10px rgba(0,0,0,0.2)" // Optional shadow
         }}
-        onClick={() => navigate("/upload")}
+        onClick={() => setShowMenu(!showMenu)}
       >
         +
       </button>
+      
+      {showMenu && <AddPatternMenu onClose={() => setShowMenu(false)} />}
 
       {/* --------------------------------------------------------
           PATTERN LIST
@@ -157,7 +164,7 @@ function Patterns() {
                     borderRadius: "8px",
                     cursor: "pointer"
                   }}
-                  onClick={() => alert("Open full pattern page")}
+                  onClick={() => navigate(`/pattern/${pattern.id}`)}
                 >
                   View Pattern
                 </button>
@@ -177,7 +184,7 @@ function Patterns() {
                     borderRadius: "8px",
                     cursor: "pointer"
                   }}
-                  onClick={() => alert("Go to AI Insight")}
+                  onClick={() => navigate(`/ai/${pattern.id}`)}
                 >
                   AI Insight
                 </button>
