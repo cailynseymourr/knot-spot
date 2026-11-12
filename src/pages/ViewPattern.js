@@ -9,6 +9,9 @@ function ViewPattern() {
   // ------------------------------------------------------------
   const { id } = useParams();
   const navigate = useNavigate();
+  const [rowsCompleted, setRowsCompleted] = useState(0);
+  const [stitchesCompleted, setStitchesCompleted] = useState(0);
+  const [notes, setNotes] = useState("");
 
   // ------------------------------------------------------------
   // STATE: Pattern data
@@ -98,6 +101,48 @@ function ViewPattern() {
           </a>
         </div>
       )}
+      <h2 style={{ marginBottom: "15px" }}>
+        Project Progress
+        </h2>
+        <div
+          style={{
+            width: "120px",
+            height: "120px",
+            borderRadius: "50%",
+            border: "8px solid #d9c4ff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.5rem",
+            fontWeight: "bold",
+            marginBottom: "20px"
+          }}
+        >
+          0%
+        </div>
+        <p>
+          <strong>Rows Completed:</strong> {rowsCompleted} / {pattern.rows.length}
+        </p>
+        <p>
+          <strong>Stitches Completed:</strong> {stitchesCompleted}
+        </p>
+        <p>
+          <strong>Estimated Completion:</strong> Not enough data to estimate yet.
+        </p>
+        <h3>Notes</h3>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Add your notes here..."
+          style={{
+            width: "100%",
+            minHeight: "120px",
+            padding: "10px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            marginBottom: "20px"
+          }}
+        />
 
       {/* --------------------------------------------------------
           ROW LIST (for created patterns)
