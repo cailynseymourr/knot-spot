@@ -10,6 +10,7 @@ function UploadPattern() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("")
+  const [yarnUsed, setYarnUsed] = useState("");
 
   // ------------------------------------------------------------
   // HANDLES FILE UPLOAD
@@ -126,12 +127,13 @@ function UploadPattern() {
         }}
       >
         <option value="">Select Category</option>
+        <option value="Clothing">Clothing</option>
         <option value="Blanket">Blanket</option>
-        <option value="Scarf">Scarf</option>
-        <option value="Hat">Hat</option>
         <option value="Amigurumi">Amigurumi</option>
-        <option value="Sweater">Sweater</option>
+        <option value="Accessories">Accessories</option>
         <option value="Home Decor">Home Decor</option>
+        <option value="Filet Crochet">Filet Crochet</option>
+        <option value="Other">Other</option>
       </select>
 
       {/* YOUTUBE LINK */}
@@ -150,6 +152,28 @@ function UploadPattern() {
         value={youtubeLink}
         onChange={(e) => setYoutubeLink(e.target.value)}
         placeholder="Paste YouTube tutorial link here"
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+          border: "1px solid #ccc"
+        }}
+      />
+      <label
+        style={{
+          display: "block",
+          marginBottom: "10px",
+          fontWeight: "bold"
+        }}
+      >
+        Yarn Used
+      </label>
+      <input
+        type="text"
+        value={yarnUsed}
+        onChange={(e) => setYarnUsed(e.target.value)}
+        placeholder="Enter yarn brand and name"
         style={{
           width: "100%",
           padding: "10px",
