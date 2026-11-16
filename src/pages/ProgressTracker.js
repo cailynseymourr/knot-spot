@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { listPatterns } from "../services/patternsService";
 import { listAllProgressLogs, summarizeLogs } from "../services/progressService";
 
+// "2026-11-24" becomes "November 24, 2026"
+function formatDate(iso) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
 function ProgressTracker() {
-  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,70 +54,50 @@ function ProgressTracker() {
   }, []);
 
   return (
-    <div style={{ padding: "40px", maxWidth: "800px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "30px" }}>Progress Tracker</h1>
+    <div className="page">
+      <h1>Progress Tracker</h1>
+      <p className="page-intro">The projects you're working on, most recent first.</p>
 
-      <h2>Current Projects</h2>
-
-      {loading && <p>Loading your projects...</p>}
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
+      {loading && <p className="muted">Loading your projects...</p>}
+      {error && <p className="error-text">{error}</p>}
       {!loading && !error && projects.length === 0 && (
         <p>
-          No progress logged yet. Open a pattern and log your first session to see
-          it here.
+          No progress logged yet. Open a pattern and log your first session to see it
+          here.
         </p>
       )}
 
       {projects.map((project) => (
-        <div
-          key={project.id}
-          onClick={() => navigate(`/pattern/${project.id}`)}
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: "12px",
-            padding: "20px",
-            marginBottom: "20px",
-            cursor: "pointer",
-            background: "#fff"
-          }}
-        >
-          <h3>{project.name}</h3>
+        <Link to={`/pattern/${project.id}`} className="card card-link" key={project.id}>
+          <div className="project-head">
+            <h2>{project.name}</h2>
+            <span className="project-percent">{project.progress}%</span>
+          </div>
 
           <div
-            style={{
-              width: "100%",
-              height: "20px",
-              background: "#eee",
-              borderRadius: "10px",
-              overflow: "hidden",
-              marginBottom: "10px"
-            }}
+            className="progress-track"
+            role="progressbar"
+            aria-valuenow={project.progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${project.name} progress`}
           >
             <div
-              style={{
-                width: `${project.progress}%`,
-                height: "100%",
-                background: "#d9c4ff"
-              }}
+              className={`progress-fill${project.progress >= 100 ? " done" : ""}`}
+              style={{ width: `${project.progress}%` }}
             />
           </div>
 
           <p>
-            <strong>Progress:</strong> {project.progress}%
+            <strong>Rows:</strong> {project.rowsDone} of {project.totalRows || "?"}
           </p>
           <p>
-            <strong>Rows Completed:</strong> {project.rowsDone} /{" "}
-            {project.totalRows || "?"}
-          </p>
-          <p>
-            <strong>Last Logged:</strong> {project.latest.date}
+            <strong>Last logged:</strong> {formatDate(project.latest.date)}
           </p>
           {project.latest.note && (
-            <p>
-              <strong>Recent Note:</strong> {project.latest.note}
-            </p>
+            <p className="muted">"{project.latest.note}"</p>
           )}
-        </div>
+        </Link>
       ))}
     </div>
   );

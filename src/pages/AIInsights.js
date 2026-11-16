@@ -8,7 +8,7 @@ import { listProgressLogs } from "../services/progressService";
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const SERVER_HELP =
-  "Could not reach the AI server. Make sure it's running (python app.py in the backend folder), then try again.";
+  "Could not reach the AI server. Make sure it's running (python app.py in the backend folder), then run again.";
 
 async function callApi(path, body) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -31,18 +31,10 @@ function formatDate(iso) {
   });
 }
 
-const cardStyle = {
-  padding: "20px",
-  border: "1px solid #ddd",
-  borderRadius: "10px",
-  marginBottom: "20px",
-  background: "#fff"
-};
-
-const FIT_COLORS = {
-  "Great match": "#e4f7e7",
-  "Good match": "#f3eaff",
-  "Possible match": "#fff6dc"
+const FIT_CLASS = {
+  "Great match": "fit-great",
+  "Good match": "fit-good",
+  "Possible match": "fit-possible"
 };
 
 const METHOD_TEXT = {
@@ -52,26 +44,24 @@ const METHOD_TEXT = {
 
 function RecommendationItem({ rec, isTop }) {
   return (
-    <div
-      style={{
-        padding: "12px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-        marginTop: "10px",
-        background: FIT_COLORS[rec.fit] || "#fff"
-      }}
-    >
-      <strong>
-        {isTop ? "Best pick: " : ""}
-        {rec.name}
-      </strong>
-      {rec.brand ? ` (${rec.brand})` : ""} · {rec.fit} · score {rec.score}/100
-      <ul style={{ margin: "8px 0 0", paddingLeft: "20px" }}>
+    <div className={`pick${isTop ? " best" : ""}`}>
+      <div className="pick-head">
+        <span className="pick-name">
+          {isTop ? "Best pick: " : ""}
+          {rec.name}
+        </span>
+        <span>
+          <span className={`chip ${FIT_CLASS[rec.fit] || ""}`}>{rec.fit}</span>{" "}
+          <span className="muted">score {rec.score}/100</span>
+        </span>
+      </div>
+      {rec.brand && <div className="muted">{rec.brand}</div>}
+      <ul>
         {rec.reasons.map((line) => (
           <li key={line}>{line}</li>
         ))}
         {rec.warnings.map((line) => (
-          <li key={line} style={{ color: "#9a5b00" }}>
+          <li key={line} className="warn">
             {line}
           </li>
         ))}
@@ -169,51 +159,55 @@ function AIInsights() {
     };
   }, [id, attempt]);
 
-  // No pattern chosen (e.g. user came from the Home page "Learn More" button)
+  // No pattern chosen (e.g. user came from the navbar)
   if (!id) {
     return (
-      <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>AI Insights</h1>
-        <p>
-          Pick a pattern to get a yarn recommendation from your stash and an
-          estimate of when you'll finish.
+      <div className="page page-narrow">
+        <h1>AI Insights</h1>
+        <p className="page-intro">
+          Pick a pattern to get a yarn recommendation from your stash and an estimate
+          of when you'll finish.
         </p>
-        <Link to="/patterns">Go to Patterns</Link>
+        <Link className="btn btn-primary" to="/patterns">
+          Choose a pattern
+        </Link>
       </div>
     );
   }
 
   if (status === "loading") {
-    return <p style={{ padding: "40px" }}>Running AI analysis...</p>;
+    return (
+      <div className="page page-narrow">
+        <p className="muted">Running the analysis...</p>
+      </div>
+    );
   }
 
   if (status === "error") {
     return (
-      <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
-        <p>{errorMsg}</p>
-        <Link to="/patterns">Back to Patterns</Link>
+      <div className="page page-narrow">
+        <p className="error-text">{errorMsg}</p>
+        <Link to="/patterns">Back to patterns</Link>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "5px" }}>AI Insights</h1>
-      <p style={{ marginTop: 0, marginBottom: "25px", fontSize: "1.1rem" }}>
-        {pattern.name}
-      </p>
+    <div className="page page-narrow">
+      <h1>AI Insights</h1>
+      <p className="page-intro">{pattern.name}</p>
 
       {/* YARN RECOMMENDATION */}
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Recommended Yarn</h2>
+      <div className="card">
+        <h2>Recommended yarn</h2>
 
-        {yarnError && <p style={{ color: "#b00020" }}>{yarnError}</p>}
+        {yarnError && <p className="error-text">{yarnError}</p>}
 
         {yarnResult && yarnResult.status !== "ok" && <p>{yarnResult.message}</p>}
 
         {yarnResult && yarnResult.status === "ok" && (
           <div>
-            <p style={{ marginBottom: 0 }}>
+            <p style={{ marginTop: 0 }}>
               This pattern needs <strong>{yarnResult.patternWeight}</strong>
               {yarnResult.yardageNeeded > 0 && (
                 <span> and about {yarnResult.yardageNeeded} yards</span>
@@ -224,7 +218,7 @@ function AIInsights() {
               <RecommendationItem key={rec.id || rec.name} rec={rec} isTop={index === 0} />
             ))}
             {yarnResult.notes.map((note) => (
-              <p key={note} style={{ color: "#555", marginBottom: 0 }}>
+              <p key={note} className="muted">
                 {note}
               </p>
             ))}
@@ -233,18 +227,18 @@ function AIInsights() {
       </div>
 
       {/* TIME ESTIMATE */}
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Estimated Time to Complete</h2>
+      <div className="card">
+        <h2>Estimated finish</h2>
 
-        {timeError && <p style={{ color: "#b00020" }}>{timeError}</p>}
+        {timeError && <p className="error-text">{timeError}</p>}
 
         {timeResult && timeResult.status !== "ok" && <p>{timeResult.message}</p>}
 
         {timeResult && timeResult.status === "ok" && (
           <div>
-            <p style={{ fontSize: "1.2rem", marginTop: 0 }}>
-              <strong>{formatDate(timeResult.estimatedCompletion)}</strong>
-              {" "}({timeResult.daysLeft} day{timeResult.daysLeft === 1 ? "" : "s"} left)
+            <p className="finish-date">{formatDate(timeResult.estimatedCompletion)}</p>
+            <p className="muted" style={{ marginTop: 0 }}>
+              {timeResult.daysLeft} day{timeResult.daysLeft === 1 ? "" : "s"} left
             </p>
             <p>
               <strong>Rows done:</strong> {timeResult.rowsDone} of {timeResult.totalRows}
@@ -252,7 +246,7 @@ function AIInsights() {
             <p>
               <strong>Your pace:</strong> about {timeResult.rowsPerDay} rows per day
             </p>
-            <p style={{ marginBottom: 0 }}>
+            <p>
               <strong>Confidence:</strong> {timeResult.confidence}.{" "}
               {METHOD_TEXT[timeResult.method]}.
             </p>
@@ -260,21 +254,14 @@ function AIInsights() {
         )}
       </div>
 
-      <button
-        onClick={() => setAttempt((n) => n + 1)}
-        style={{
-          padding: "10px 15px",
-          background: "#e8d5ff",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontWeight: "bold",
-          marginRight: "10px"
-        }}
-      >
-        Run again
-      </button>
-      <Link to={`/pattern/${id}`}>Back to pattern</Link>
+      <div className="form-actions">
+        <button className="btn btn-primary" onClick={() => setAttempt((n) => n + 1)}>
+          Run again
+        </button>
+        <Link className="btn btn-secondary" to={`/pattern/${id}`}>
+          Back to pattern
+        </Link>
+      </div>
     </div>
   );
 }

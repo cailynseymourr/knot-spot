@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { getPattern, deletePattern } from "../services/patternsService";
 import {
   addProgressLog,
@@ -7,6 +7,8 @@ import {
   deleteProgressLog,
   summarizeLogs
 } from "../services/progressService";
+import { YARN_WEIGHTS } from "../components/YarnWeightSelect";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 // Turns a normal YouTube link into the embeddable version (or null if unrecognized)
 function getYoutubeEmbedUrl(link) {
@@ -31,9 +33,25 @@ function getToday() {
   return new Date().toLocaleDateString("en-CA");
 }
 
+// "2026-11-24" becomes "November 24, 2026"
+function formatDate(iso) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+const weightLabel = (value) =>
+  YARN_WEIGHTS.find((w) => w.value === value)?.label || "";
+
 function ViewPattern() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const notice = location.state && location.state.notice; // e.g. "file could not be uploaded"
 
   // Pattern data is loaded from Firestore using the id in the URL
   const [pattern, setPattern] = useState(null);
@@ -49,6 +67,11 @@ function ViewPattern() {
     note: ""
   });
   const [savingLog, setSavingLog] = useState(false);
+  const [logMessage, setLogMessage] = useState("");
+
+  // Delete confirmation: { type: "pattern" } or { type: "log", log }
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     getPattern(id)
@@ -76,15 +99,16 @@ function ViewPattern() {
 
   // ADD LOG: saves one work session to Firestore
   const addLog = async () => {
+    setLogMessage("");
     const rowsDone = Number(logForm.rows) || 0;
     const stitches = Number(logForm.stitches) || 0;
 
     if (!logForm.date) {
-      alert("Please pick a date.");
+      setLogMessage("Pick a date for this session.");
       return;
     }
     if (rowsDone <= 0 && stitches <= 0) {
-      alert("Enter the rows or stitches you finished.");
+      setLogMessage("Enter the rows or stitches you finished.");
       return;
     }
 
@@ -104,42 +128,45 @@ function ViewPattern() {
       setLogForm({ date: logForm.date, rows: "", stitches: "", note: "" });
     } catch (err) {
       console.error(err);
-      alert("Could not save the log. Check the console for details.");
+      setLogMessage("Could not save that log. Check the console for details.");
     } finally {
       setSavingLog(false);
     }
   };
 
-  const removeLog = async (logId) => {
-    if (!window.confirm("Delete this log entry?")) return;
+  // Runs after the person confirms in the dialog
+  const confirmDelete = async () => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    setActionError("");
     try {
-      await deleteProgressLog(logId);
-      setLogs((prev) => prev.filter((l) => l.id !== logId));
+      if (target.type === "pattern") {
+        await deletePattern(id);
+        navigate("/patterns");
+      } else {
+        await deleteProgressLog(target.log.id);
+        setLogs((prev) => prev.filter((l) => l.id !== target.log.id));
+      }
     } catch (err) {
       console.error(err);
-      alert("Could not delete the log.");
+      setActionError("Could not delete that. Try again.");
     }
   };
 
-  // Deletes the pattern from Firestore, then goes back to the list
-  const handleDelete = async () => {
-    if (!window.confirm("Delete this pattern? This can't be undone.")) return;
-    try {
-      await deletePattern(id);
-      navigate("/patterns");
-    } catch (err) {
-      console.error(err);
-      alert("Could not delete the pattern.");
-    }
-  };
-
-  const handleEdit = () => {
-    navigate(`/edit/${id}`);
-  };
-
-  if (loading) return <p style={{ padding: "40px" }}>Loading pattern...</p>;
+  if (loading) {
+    return (
+      <div className="page">
+        <p className="muted">Loading your pattern...</p>
+      </div>
+    );
+  }
   if (error || !pattern) {
-    return <p style={{ padding: "40px" }}>{error || "Pattern not found."}</p>;
+    return (
+      <div className="page">
+        <p className="error-text">{error || "Pattern not found."}</p>
+        <Link to="/patterns">Back to patterns</Link>
+      </div>
+    );
   }
 
   const embedUrl = pattern.youtubeLink ? getYoutubeEmbedUrl(pattern.youtubeLink) : null;
@@ -150,229 +177,201 @@ function ViewPattern() {
   const progressPercent = totalRows
     ? Math.min(100, Math.round((rowsDone / totalRows) * 100))
     : 0;
-
-  const smallInput = {
-    padding: "8px",
-    borderRadius: "8px",
-    border: "1px solid #ccc"
-  };
+  const ringColor = progressPercent >= 100 ? "var(--sage)" : "var(--marigold)";
 
   return (
-    <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "10px" }}>{pattern.name}</h1>
+    <div className="page">
+      {notice && <p className="notice">{notice}</p>}
 
-      <p style={{ marginBottom: "20px", fontSize: "1.1rem" }}>
-        {pattern.description}
-      </p>
+      <h1>{pattern.name}</h1>
+      <div className="pattern-chips">
+        {pattern.category && <span className="chip">{pattern.category}</span>}
+        {weightLabel(pattern.yarnWeight) && (
+          <span className="chip">{weightLabel(pattern.yarnWeight)}</span>
+        )}
+        {pattern.yardageNeeded > 0 && (
+          <span className="chip">about {pattern.yardageNeeded} yd</span>
+        )}
+        {pattern.yarnUsed && <span className="chip">{pattern.yarnUsed}</span>}
+      </div>
+      {pattern.description && (
+        <p style={{ fontSize: "1.1rem", marginTop: 0 }}>{pattern.description}</p>
+      )}
 
       {pattern.fileUrl && (
-        <div style={{ marginBottom: "20px" }}>
+        <p>
           <a href={pattern.fileUrl} target="_blank" rel="noopener noreferrer">
-            View Uploaded File
+            View the uploaded pattern file
           </a>
-        </div>
+        </p>
       )}
 
       {embedUrl && (
-        <div style={{ marginBottom: "20px" }}>
-          <iframe
-            width="100%"
-            height="315"
-            src={embedUrl}
-            title="Pattern tutorial"
-            allowFullScreen
-            style={{ border: 0, borderRadius: "10px" }}
-          />
+        <div className="video-frame">
+          <iframe src={embedUrl} title="Pattern tutorial" allowFullScreen />
         </div>
       )}
 
-      {/* PROJECT PROGRESS (totals come from the logs below) */}
-      <h2 style={{ marginBottom: "15px" }}>Project Progress</h2>
-      <div
-        style={{
-          width: "120px",
-          height: "120px",
-          borderRadius: "50%",
-          border: "8px solid #d9c4ff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "1.5rem",
-          fontWeight: "bold",
-          marginBottom: "20px"
-        }}
-      >
-        {progressPercent}%
+      {/* PROGRESS (totals come from the logs below) */}
+      <div className="card">
+        <h2>Progress</h2>
+        <div className="progress-summary">
+          <div
+            className="progress-ring"
+            style={{
+              background: `conic-gradient(${ringColor} ${progressPercent * 3.6}deg, var(--lavender) 0deg)`
+            }}
+            role="img"
+            aria-label={`${progressPercent} percent complete`}
+          >
+            <div className="progress-ring-inner">{progressPercent}%</div>
+          </div>
+          <div>
+            <p>
+              <strong>Rows:</strong> {rowsDone} of {totalRows || "?"}
+            </p>
+            <p>
+              <strong>Stitches:</strong> {stitches}
+            </p>
+            <p>
+              <Link to={`/ai/${id}`}>See your estimated finish date</Link>
+            </p>
+          </div>
+        </div>
       </div>
-      <p>
-        <strong>Rows Completed:</strong> {rowsDone} / {totalRows || "?"}
-      </p>
-      <p>
-        <strong>Stitches Completed:</strong> {stitches}
-      </p>
-      <p>
-        <strong>Estimated Completion:</strong> See AI Insight for an estimate.
-      </p>
 
-      {/* LOG PROGRESS FORM */}
-      <h3>Log Progress</h3>
-      <div
-        style={{
-          display: "flex",
-          gap: "10px",
-          flexWrap: "wrap",
-          marginBottom: "10px"
-        }}
-      >
-        <input
-          type="date"
-          value={logForm.date}
-          onChange={(e) => updateLogForm("date", e.target.value)}
-          style={smallInput}
+      {/* LOG A SESSION */}
+      <div className="card">
+        <h2>Log a session</h2>
+        <div className="form-grid tight">
+          <div>
+            <label className="label" htmlFor="log-date">Date</label>
+            <input
+              id="log-date"
+              className="input"
+              type="date"
+              value={logForm.date}
+              onChange={(e) => updateLogForm("date", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="log-rows">Rows done</label>
+            <input
+              id="log-rows"
+              className="input"
+              type="number"
+              min="0"
+              value={logForm.rows}
+              onChange={(e) => updateLogForm("rows", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="log-stitches">Stitches</label>
+            <input
+              id="log-stitches"
+              className="input"
+              type="number"
+              min="0"
+              value={logForm.stitches}
+              onChange={(e) => updateLogForm("stitches", e.target.value)}
+            />
+          </div>
+        </div>
+        <label className="label" htmlFor="log-note">Note (optional)</label>
+        <textarea
+          id="log-note"
+          className="input"
+          style={{ minHeight: "70px" }}
+          placeholder="Working on the wings"
+          value={logForm.note}
+          onChange={(e) => updateLogForm("note", e.target.value)}
         />
-        <input
-          type="number"
-          min="0"
-          placeholder="Rows done"
-          value={logForm.rows}
-          onChange={(e) => updateLogForm("rows", e.target.value)}
-          style={{ ...smallInput, width: "110px" }}
-        />
-        <input
-          type="number"
-          min="0"
-          placeholder="Stitches"
-          value={logForm.stitches}
-          onChange={(e) => updateLogForm("stitches", e.target.value)}
-          style={{ ...smallInput, width: "110px" }}
-        />
+        {logMessage && <p className="error-text">{logMessage}</p>}
+        <button className="btn btn-primary btn-small" onClick={addLog} disabled={savingLog}>
+          {savingLog ? "Saving..." : "Add log"}
+        </button>
       </div>
-      <textarea
-        value={logForm.note}
-        onChange={(e) => updateLogForm("note", e.target.value)}
-        placeholder="Note (optional), like 'working on the wings'"
-        style={{
-          width: "100%",
-          minHeight: "70px",
-          padding: "10px",
-          borderRadius: "8px",
-          border: "1px solid #ccc",
-          marginBottom: "10px"
-        }}
-      />
-      <button
-        onClick={addLog}
-        disabled={savingLog}
-        style={{
-          padding: "10px 15px",
-          background: "#c8a8ff",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontWeight: "bold",
-          marginBottom: "20px"
-        }}
-      >
-        {savingLog ? "Saving..." : "Add Log"}
-      </button>
 
       {/* LOG HISTORY */}
-      <h3>Log History</h3>
-      {logs.length === 0 && <p>No progress logged yet.</p>}
-      {logs.map((log) => (
-        <div
-          key={log.id}
-          style={{
-            padding: "10px",
-            border: "1px solid #ddd",
-            borderRadius: "8px",
-            marginBottom: "10px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: "10px"
-          }}
-        >
-          <div>
-            <strong>{log.date}</strong>: +{log.rowsDone} rows, +{log.stitches} stitches
-            {log.note && <div style={{ color: "#555" }}>{log.note}</div>}
-          </div>
-          <button
-            onClick={() => removeLog(log.id)}
-            style={{
-              padding: "6px 10px",
-              background: "#ffdddd",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer"
-            }}
-          >
-            X
-          </button>
-        </div>
-      ))}
-
-      {/* ROW LIST: rows you've finished are shaded */}
-      <h2 style={{ margin: "20px 0 10px" }}>Rows</h2>
-      <div>
-        {pattern.rows.map((row, index) => (
-          <div
-            key={index}
-            style={{
-              padding: "10px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-              marginBottom: "10px",
-              background: index < rowsDone ? "#f3eaff" : "#fff"
-            }}
-          >
-            <strong>Row {index + 1}:</strong> {row}
+      <div className="card">
+        <h2>Log history</h2>
+        {logs.length === 0 && <p className="muted">No sessions logged yet.</p>}
+        {logs.map((log) => (
+          <div className="log-entry" key={log.id}>
+            <div>
+              <strong>{formatDate(log.date)}</strong>
+              <p>
+                {log.rowsDone} rows, {log.stitches} stitches
+              </p>
+              {log.note && <p className="muted">{log.note}</p>}
+            </div>
+            <button
+              className="btn btn-danger btn-small"
+              onClick={() => setPendingDelete({ type: "log", log })}
+              aria-label={`Delete the log from ${formatDate(log.date)}`}
+            >
+              Delete
+            </button>
           </div>
         ))}
       </div>
 
-      <div style={{ marginTop: "20px" }}>
-        <button
-          onClick={handleEdit}
-          style={{
-            padding: "10px 15px",
-            background: "#e8d5ff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            marginRight: "10px"
-          }}
-        >
-          Edit Pattern
-        </button>
+      {/* ROWS: finished rows are shaded and checked */}
+      {pattern.rows.length > 0 && (
+        <div>
+          <h2>Rows</h2>
+          {pattern.rows.map((row, index) => {
+            const done = index < rowsDone;
+            return (
+              <div key={index} className={`row-item${done ? " done" : ""}`}>
+                <span className="row-num">Row {index + 1}</span>
+                <span>{row}</span>
+                {done && (
+                  <span className="row-check" aria-label="Finished">
+                    ✓
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-        <button
-          onClick={handleDelete}
-          style={{
-            padding: "10px 15px",
-            background: "#ffdddd",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            marginRight: "10px"
-          }}
-        >
-          Delete Pattern
-        </button>
+      {actionError && <p className="error-text">{actionError}</p>}
 
+      <div className="pattern-actions">
+        <button className="btn btn-primary" onClick={() => navigate(`/ai/${id}`)}>
+          AI insight
+        </button>
+        <button className="btn btn-secondary" onClick={() => navigate(`/edit/${id}`)}>
+          Edit pattern
+        </button>
         <button
-          onClick={() => navigate(`/ai/${id}`)}
-          style={{
-            padding: "10px 15px",
-            background: "#d9c4ff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer"
-          }}
+          className="btn btn-danger"
+          onClick={() => setPendingDelete({ type: "pattern" })}
         >
-          AI Insight
+          Delete pattern
         </button>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={
+          pendingDelete && pendingDelete.type === "pattern"
+            ? "Delete this pattern?"
+            : "Delete this log entry?"
+        }
+        message={
+          pendingDelete && pendingDelete.type === "pattern"
+            ? `${pattern.name} will be removed. This can't be undone.`
+            : "This session will be removed from your progress. This can't be undone."
+        }
+        confirmLabel={
+          pendingDelete && pendingDelete.type === "pattern" ? "Delete pattern" : "Delete entry"
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

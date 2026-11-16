@@ -1,101 +1,74 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 function Home() {
+  // If public/images/hero.jpg doesn't exist (yet), show the placeholder instead
+  const [heroOk, setHeroOk] = useState(true);
+
   return (
-    <div
-      style={{
-        // MAIN CONTAINER — controls overall layout
-        display: "flex",
-        alignItems: "center",      // vertical centering
-        justifyContent: "center",  // horizontal centering
-        padding: "60px 20px",      // space around the hero section
-        minHeight: "80vh"          // makes it tall like a landing page
-      }}
-    >
-      {/* LEFT SIDE — TEXT SECTION */}
-      <div
-        style={{
-          maxWidth: "500px",        // keeps text from stretching too wide
-          marginRight: "40px"       // space between text and image
-        }}
-      >
-        {/* MAIN TITLE */}
-        <h1
-          style={{
-            fontSize: "3rem",       // change size here
-            marginBottom: "20px"    // spacing under title
-            // You can change color here: color: "#yourColor"
-          }}
-        >
-          Knot Spot
-        </h1>
-
-        {/* SUB‑HEADLINE / DESCRIPTION */}
-        <p
-          style={{
-            fontSize: "1.2rem",     // change text size
-            color: "#555",          // change text color
-            marginBottom: "30px"    // spacing under paragraph
-          }}
-        >
-          Your creative crochet companion — organize patterns, track your yarn stash,
-          plan projects, and get smart AI insights.
-        </p>
-
-        {/* BUTTONS */}
-        <div style={{ display: "flex", gap: "15px" }}>
-          {/* PRIMARY BUTTON */}
-          <Link to="/patterns" style={buttonStyle}>
-            Get Started
-          </Link>
-
-          {/* SECONDARY BUTTON */}
-          <Link to="/ai" style={secondaryButtonStyle}>
-            Learn More
-          </Link>
+    <div>
+      <section className="hero">
+        <div>
+          <h1>Every stitch, skein and project in one place</h1>
+          <p>
+            Save your patterns, keep track of your yarn stash, log your progress,
+            and let Knot Spot pick the right yarn and estimate your finish date.
+          </p>
+          <div className="hero-actions">
+            <Link to="/patterns" className="btn btn-primary">
+              Browse patterns
+            </Link>
+            <Link to="/yarn" className="btn btn-secondary">
+              Open my yarn stash
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {/* RIGHT SIDE — IMAGE / ILLUSTRATION PLACEHOLDER */}
-      <div
-        style={{
-          width: "400px",           // change image box width
-          height: "300px",          // change image box height
-          background: "#f3f3f3",    // change background color
-          borderRadius: "12px",     // roundness of corners
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#999",            // text color inside placeholder
-          fontSize: "1rem"
-        }}
-      >
-        Image / Illustration Here
-      </div>
+        <div className="hero-frame">
+          {heroOk ? (
+            <img
+              className="hero-image"
+              src={`${process.env.PUBLIC_URL}/images/hero.jpg`}
+              alt="A bowl of colorful yarn and crochet pieces with a crochet hook"
+              onError={() => setHeroOk(false)}
+            />
+          ) : (
+            <div className="hero-placeholder" aria-hidden="true">
+              <svg width="120" height="120" viewBox="0 0 32 32">
+                <circle cx="16" cy="16" r="13" fill="#f8f5fb" stroke="#3b2a4a" strokeWidth="1.5" />
+                <path
+                  d="M5 13c7 3 15 3 22 0M4 19c8 3 16 3 24 0M10 5c-2 8-2 14 2 22"
+                  fill="none"
+                  stroke="#b4447a"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="features">
+        <Link to="/patterns" className="feature">
+          <h3>Patterns</h3>
+          <p>Write a pattern row by row or upload one, with the tutorial video beside it.</p>
+        </Link>
+        <Link to="/yarn" className="feature">
+          <h3>Yarn Stash</h3>
+          <p>Log every skein with its weight, yardage and a photo.</p>
+        </Link>
+        <Link to="/progress" className="feature">
+          <h3>Progress Tracker</h3>
+          <p>Log each session and watch the percentage climb.</p>
+        </Link>
+        <Link to="/ai" className="feature">
+          <h3>AI Insights</h3>
+          <p>Get a yarn pick from your stash and an estimated finish date.</p>
+        </Link>
+      </section>
     </div>
   );
 }
-
-/* PRIMARY BUTTON STYLE */
-const buttonStyle = {
-  padding: "12px 20px",           // button size
-  background: "#e8d5ff",          // button color
-  borderRadius: "8px",            // rounded corners
-  textDecoration: "none",         // removes underline
-  color: "#333",                  // text color
-  fontWeight: "bold"              // bold text
-  // Add hover effects later in CSS if you want
-};
-
-/* SECONDARY BUTTON STYLE */
-const secondaryButtonStyle = {
-  padding: "12px 20px",
-  background: "#fff",             // white background
-  border: "2px solid #e8d5ff",    // outline color
-  borderRadius: "8px",
-  textDecoration: "none",
-  color: "#333",
-  fontWeight: "bold"
-};
 
 export default Home;

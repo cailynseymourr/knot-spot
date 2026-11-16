@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { savePattern, uploadPatternFile } from "../services/patternsService";
 import YarnWeightSelect from "../components/YarnWeightSelect";
 
 function UploadPattern() {
+  const navigate = useNavigate();
+
   const [patternName, setPatternName] = useState("");
   const [file, setFile] = useState(null);
   const [description, setDescription] = useState("");
@@ -12,32 +14,29 @@ function UploadPattern() {
   const [yarnUsed, setYarnUsed] = useState("");
   const [yarnWeight, setYarnWeight] = useState("");
   const [yardageNeeded, setYardageNeeded] = useState("");
-  const [saving, setSaving] = useState(false);
   const [totalRows, setTotalRows] = useState("");
-  const navigate = useNavigate();
-
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Uploads the file (if any), saves the pattern to Firestore, then opens it
   const handleSave = async () => {
+    setFormError("");
     if (!patternName.trim()) {
-      alert("Please enter a pattern name.");
+      setFormError("Give your pattern a name first.");
       return;
     }
 
     setSaving(true);
     try {
       let fileUrl = null;
+      let notice = "";
       if (file) {
         try {
           fileUrl = await uploadPatternFile(file);
         } catch (err) {
           console.error(err);
-          alert(
-            "The file could not be uploaded (check Firebase Storage). The pattern will be saved without it."
-          );
+          notice =
+            "The file could not be uploaded (check Firebase Storage), so the pattern was saved without it.";
         }
       }
 
@@ -53,176 +52,139 @@ function UploadPattern() {
         totalRows: Number(totalRows) || 0,
         fileUrl
       });
-      navigate(`/pattern/${id}`);
+      navigate(`/pattern/${id}`, { state: notice ? { notice } : undefined });
     } catch (err) {
       console.error(err);
-      alert("Could not save the pattern. Check the console for details.");
+      setFormError("Could not save the pattern. Check the console for details.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div style={{ padding: "40px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>Upload Pattern</h1>
+    <div className="page page-narrow">
+      <h1>Upload a pattern</h1>
+      <p className="page-intro">
+        Already have a pattern as a PDF or an image? Save it here with its details.
+      </p>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Pattern Name
-      </label>
-      <input
-        type="text"
-        value={patternName}
-        onChange={(e) => setPatternName(e.target.value)}
-        placeholder="Enter pattern name"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+      <div className="card">
+        <h2>Details</h2>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Pattern Description
-      </label>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Describe your pattern..."
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc",
-          minHeight: "100px"
-        }}
-      />
+        <label className="label" htmlFor="upload-name">Pattern name</label>
+        <input
+          id="upload-name"
+          className="input"
+          type="text"
+          value={patternName}
+          onChange={(e) => setPatternName(e.target.value)}
+          placeholder="Ocean curtain"
+        />
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Category
-      </label>
-      <select
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      >
-        <option value="">Select Category</option>
-        <option value="Clothing">Clothing</option>
-        <option value="Blanket">Blanket</option>
-        <option value="Amigurumi">Amigurumi</option>
-        <option value="Accessories">Accessories</option>
-        <option value="Home Decor">Home Decor</option>
-        <option value="Filet Crochet">Filet Crochet</option>
-        <option value="Other">Other</option>
-      </select>
+        <label className="label" htmlFor="upload-description">Description</label>
+        <textarea
+          id="upload-description"
+          className="input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What is it, and who is it for?"
+        />
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        YouTube Tutorial Link
-      </label>
-      <input
-        type="text"
-        value={youtubeLink}
-        onChange={(e) => setYoutubeLink(e.target.value)}
-        placeholder="Paste YouTube tutorial link here"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+        <label className="label" htmlFor="upload-category">Category</label>
+        <select
+          id="upload-category"
+          className="input"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="">Select a category</option>
+          <option value="Clothing">Clothing</option>
+          <option value="Blanket">Blanket</option>
+          <option value="Amigurumi">Amigurumi</option>
+          <option value="Accessories">Accessories</option>
+          <option value="Home Decor">Home Decor</option>
+          <option value="Filet Crochet">Filet Crochet</option>
+          <option value="Other">Other</option>
+        </select>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Yarn Used
-      </label>
-      <input
-        type="text"
-        value={yarnUsed}
-        onChange={(e) => setYarnUsed(e.target.value)}
-        placeholder="Enter yarn brand and name"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+        <label className="label" htmlFor="upload-youtube">YouTube tutorial link</label>
+        <input
+          id="upload-youtube"
+          className="input"
+          type="text"
+          value={youtubeLink}
+          onChange={(e) => setYoutubeLink(e.target.value)}
+          placeholder="https://www.youtube.com/watch?v=..."
+        />
+      </div>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Yarn Weight Needed
-      </label>
-      <YarnWeightSelect value={yarnWeight} onChange={setYarnWeight} />
+      <div className="card">
+        <h2>Yarn and size</h2>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Yardage Needed
-      </label>
-      <input
-        type="number"
-        min="0"
-        value={yardageNeeded}
-        onChange={(e) => setYardageNeeded(e.target.value)}
-        placeholder="Approximate yards needed"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
-    <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-    Total Rows (for progress tracking)
-    </label>
-    <input
-      type="number"
-      min="0"
-      value={totalRows}
-      onChange={(e) => setTotalRows(e.target.value)}
-      placeholder="How many rows is the whole pattern?"
-      style={{
-        width: "100%",
-        padding: "10px",
-        marginBottom: "20px",
-        borderRadius: "8px",
-        border: "1px solid #ccc"
-    }}
-  />
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Upload File
-      </label>
-      <input
-        type="file"
-        onChange={handleFileChange}
-        style={{ marginBottom: "20px" }}
-      />
-      {file && (
-        <p style={{ marginTop: 0, marginBottom: "20px" }}>Selected: {file.name}</p>
-      )}
+        <label className="label" htmlFor="upload-yarn">Yarn used</label>
+        <input
+          id="upload-yarn"
+          className="input"
+          type="text"
+          value={yarnUsed}
+          onChange={(e) => setYarnUsed(e.target.value)}
+          placeholder="Brand and name"
+        />
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{
-          padding: "12px 20px",
-          background: "#e8d5ff",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontWeight: "bold"
-        }}
-      >
-        {saving ? "Saving..." : "Save Pattern"}
-      </button>
+        <div className="form-grid">
+          <div>
+            <label className="label">Yarn weight needed</label>
+            <YarnWeightSelect value={yarnWeight} onChange={setYarnWeight} />
+          </div>
+          <div>
+            <label className="label" htmlFor="upload-yardage">Yardage needed</label>
+            <input
+              id="upload-yardage"
+              className="input"
+              type="number"
+              min="0"
+              value={yardageNeeded}
+              onChange={(e) => setYardageNeeded(e.target.value)}
+              placeholder="Approximate yards"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="upload-rows">Total rows</label>
+            <input
+              id="upload-rows"
+              className="input"
+              type="number"
+              min="0"
+              value={totalRows}
+              onChange={(e) => setTotalRows(e.target.value)}
+              placeholder="For progress tracking"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Pattern file</h2>
+        <label className="label" htmlFor="upload-file">PDF or image</label>
+        <input
+          id="upload-file"
+          className="input"
+          type="file"
+          onChange={(e) => setFile(e.target.files[0] || null)}
+        />
+        {file && <p className="muted">Selected: {file.name}</p>}
+      </div>
+
+      {formError && <p className="error-text">{formError}</p>}
+
+      <div className="form-actions">
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save pattern"}
+        </button>
+        <Link className="btn btn-secondary" to="/patterns">
+          Cancel
+        </Link>
+      </div>
     </div>
   );
 }

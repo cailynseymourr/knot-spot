@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AddPatternMenu from "../components/AddPatternMenu";
+import { YARN_WEIGHTS } from "../components/YarnWeightSelect";
 import { listPatterns } from "../services/patternsService";
+
+const weightLabel = (value) =>
+  YARN_WEIGHTS.find((w) => w.value === value)?.label || "Not set";
 
 function Patterns() {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
 
-  // Patterns are loaded from Firestore. openId remembers which dropdown is open.
+  // Patterns are loaded from Firestore. openId remembers which card is open.
   const [patterns, setPatterns] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,120 +22,81 @@ function Patterns() {
       .then(setPatterns)
       .catch((err) => {
         console.error(err);
-        setError("Could not load patterns. Check your Firebase setup.");
+        setError("Could not load your patterns. Check your Firebase setup.");
       })
       .finally(() => setLoading(false));
   }, []);
 
-  // Toggles a dropdown open/closed (clicking the open one closes it)
-  const toggleDropdown = (id) => {
-    setOpenId((prev) => (prev === id ? null : id));
-  };
+  const toggle = (id) => setOpenId((prev) => (prev === id ? null : id));
 
   return (
-    <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>Patterns</h1>
+    <div className="page">
+      <h1>Patterns</h1>
+      <p className="page-intro">Your saved patterns. Open one to see the details.</p>
 
-      {/* ADD BUTTON (+) */}
       <button
-        style={{
-          position: "fixed",
-          bottom: "30px",
-          right: "30px",
-          width: "60px",
-          height: "60px",
-          borderRadius: "50%",
-          background: "#e8d5ff",
-          border: "none",
-          fontSize: "2rem",
-          cursor: "pointer",
-          boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
-        }}
+        className="fab"
         onClick={() => setShowMenu(!showMenu)}
+        aria-label="Add a pattern"
       >
         +
       </button>
-
       {showMenu && <AddPatternMenu onClose={() => setShowMenu(false)} />}
 
-      {loading && <p>Loading patterns...</p>}
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
+      {loading && <p className="muted">Loading your patterns...</p>}
+      {error && <p className="error-text">{error}</p>}
       {!loading && !error && patterns.length === 0 && (
-        <p>No patterns yet. Tap the + button to add your first one!</p>
+        <p>No patterns yet. Tap the + button to add your first one.</p>
       )}
 
-      {/* PATTERN LIST */}
-      <div>
-        {patterns.map((pattern) => (
-          <div
-            key={pattern.id}
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: "10px",
-              padding: "20px",
-              marginBottom: "20px",
-              background: "#fff"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                cursor: "pointer"
-              }}
-              onClick={() => toggleDropdown(pattern.id)}
+      {patterns.map((pattern) => {
+        const isOpen = openId === pattern.id;
+        return (
+          <div className="card" key={pattern.id}>
+            <button
+              className="card-toggle"
+              aria-expanded={isOpen}
+              onClick={() => toggle(pattern.id)}
             >
-              <h2 style={{ margin: 0, fontSize: "1.5rem" }}>{pattern.name}</h2>
-              <span style={{ fontSize: "1.5rem" }}>
-                {openId === pattern.id ? "▲" : "▼"}
-              </span>
-            </div>
+              <span className="card-title">{pattern.name}</span>
+              {pattern.category && <span className="chip">{pattern.category}</span>}
+              <span aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
+            </button>
 
-            {openId === pattern.id && (
-              <div style={{ marginTop: "10px" }}>
+            {isOpen && (
+              <div style={{ marginTop: "12px" }}>
+                {pattern.description && <p>{pattern.description}</p>}
                 <p>
-                  <strong>Description:</strong> {pattern.description || "None"}
+                  <strong>Yarn:</strong> {pattern.yarnUsed || "Not set"}
                 </p>
                 <p>
-                  <strong>Category:</strong> {pattern.category || "None"}
+                  <strong>Weight:</strong> {weightLabel(pattern.yarnWeight)}
                 </p>
-                <p>
-                  <strong>Yarn:</strong> {pattern.yarnUsed || "None"}
-                </p>
+                {pattern.yardageNeeded > 0 && (
+                  <p>
+                    <strong>Yardage:</strong> about {pattern.yardageNeeded} yd
+                  </p>
+                )}
 
-                <button
-                  style={{
-                    marginTop: "10px",
-                    padding: "10px 15px",
-                    background: "#e8d5ff",
-                    border: "none",
-                    borderRadius: "8px",
-                    cursor: "pointer"
-                  }}
-                  onClick={() => navigate(`/pattern/${pattern.id}`)}
-                >
-                  View Pattern
-                </button>
-
-                <button
-                  style={{
-                    marginTop: "10px",
-                    marginLeft: "10px",
-                    padding: "10px 15px",
-                    background: "#fff",
-                    border: "2px solid #e8d5ff",
-                    borderRadius: "8px",
-                    cursor: "pointer"
-                  }}
-                  onClick={() => navigate(`/ai/${pattern.id}`)}
-                >
-                  AI Insight
-                </button>
+                <div className="card-actions">
+                  <button
+                    className="btn btn-primary btn-small"
+                    onClick={() => navigate(`/pattern/${pattern.id}`)}
+                  >
+                    View pattern
+                  </button>
+                  <button
+                    className="btn btn-secondary btn-small"
+                    onClick={() => navigate(`/ai/${pattern.id}`)}
+                  >
+                    AI insight
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

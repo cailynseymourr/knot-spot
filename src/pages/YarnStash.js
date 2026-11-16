@@ -1,19 +1,30 @@
 import { useState, useEffect } from "react";
 import { saveYarn, listYarns, deleteYarn, imageToDataUrl } from "../services/yarnService";
 import YarnWeightSelect, { YARN_WEIGHTS } from "../components/YarnWeightSelect";
+import YarnBall from "../components/YarnBall";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const emptyYarn = { name: "", brand: "", color: "", weight: "", yards: "" };
+
+const weightLabel = (value) =>
+  YARN_WEIGHTS.find((w) => w.value === value)?.label || "Not set";
+
+// Shown on a yarn card that has no photo
+function YarnIcon() {
+  return <YarnBall size={96} />;
+}
 
 function YarnStash() {
   const [yarns, setYarns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState(""); // problems from adding or deleting
   const [newYarn, setNewYarn] = useState(emptyYarn);
   const [photo, setPhoto] = useState(null);
   const [fileInputKey, setFileInputKey] = useState(0); // changing this clears the file input
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // the yarn waiting for confirmation
 
-  // Load the stash from Firestore
   useEffect(() => {
     listYarns()
       .then(setYarns)
@@ -28,24 +39,24 @@ function YarnStash() {
     setNewYarn({ ...newYarn, [e.target.name]: e.target.value });
   };
 
-  // ADD YARN: uploads the photo (if any), saves to Firestore, adds to the list
+  // ADD YARN: shrinks the photo (if any), saves to Firestore, adds to the list
   const addYarn = async () => {
+    setMessage("");
     if (!newYarn.name.trim()) {
-      alert("Please enter a yarn name.");
+      setMessage("Enter a yarn name first.");
       return;
     }
 
     setSaving(true);
     try {
       let photoUrl = null;
+      let photoWarning = "";
       if (photo) {
         try {
           photoUrl = await imageToDataUrl(photo);
         } catch (err) {
           console.error(err);
-          alert(
-            "The photo could not be processed. The yarn will be saved without a photo."
-          );
+          photoWarning = "The photo could not be processed, so the yarn was saved without it.";
         }
       }
 
@@ -63,174 +74,169 @@ function YarnStash() {
       setNewYarn(emptyYarn);
       setPhoto(null);
       setFileInputKey((k) => k + 1);
+      setMessage(photoWarning);
     } catch (err) {
       console.error(err);
-      alert("Could not save the yarn. Check the console for details.");
+      setMessage("Could not save the yarn. Check the console for details.");
     } finally {
       setSaving(false);
     }
   };
 
-  // DELETE YARN
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this yarn?")) return;
+  // DELETE: runs after the person confirms in the dialog
+  const confirmDelete = async () => {
+    const yarn = pendingDelete;
+    setPendingDelete(null);
     try {
-      await deleteYarn(id);
-      setYarns((prev) => prev.filter((y) => y.id !== id));
+      await deleteYarn(yarn.id);
+      setYarns((prev) => prev.filter((y) => y.id !== yarn.id));
     } catch (err) {
       console.error(err);
-      alert("Could not delete the yarn.");
+      setMessage("Could not delete that yarn. Try again.");
     }
   };
 
-  const weightLabel = (value) =>
-    YARN_WEIGHTS.find((w) => w.value === value)?.label || "Not set";
-
-  const inputStyle = {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "10px",
-    borderRadius: "8px",
-    border: "1px solid #ccc"
-  };
-
   return (
-    <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>Yarn Stash</h1>
+    <div className="page">
+      <h1>Yarn Stash</h1>
+      <p className="page-intro">
+        Everything you own, with the weight and yardage the AI uses to pick yarn for a pattern.
+      </p>
 
-      {/* ADD NEW YARN FORM */}
-      <div
-        style={{
-          padding: "20px",
-          border: "1px solid #ddd",
-          borderRadius: "10px",
-          marginBottom: "30px"
-        }}
-      >
-        <h2>Add Yarn</h2>
+      {/* ADD YARN */}
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Add yarn</h2>
 
-        <input
-          name="name"
-          value={newYarn.name}
-          onChange={handleChange}
-          placeholder="Yarn Name"
-          style={inputStyle}
-        />
-        <input
-          name="brand"
-          value={newYarn.brand}
-          onChange={handleChange}
-          placeholder="Brand"
-          style={inputStyle}
-        />
-        <input
-          name="color"
-          value={newYarn.color}
-          onChange={handleChange}
-          placeholder="Color"
-          style={inputStyle}
-        />
-
-        <YarnWeightSelect
-          value={newYarn.weight}
-          onChange={(value) => setNewYarn({ ...newYarn, weight: value })}
-        />
-
-        <input
-          name="yards"
-          value={newYarn.yards}
-          onChange={handleChange}
-          placeholder="Yardage"
-          type="number"
-          min="0"
-          style={inputStyle}
-        />
-
-        <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
-          Photo (optional)
-        </label>
-        <input
-          key={fileInputKey}
-          type="file"
-          accept="image/*"
-          onChange={(e) => setPhoto(e.target.files[0] || null)}
-          style={{ marginBottom: "15px" }}
-        />
-
-        <div>
-          <button
-            onClick={addYarn}
-            disabled={saving}
-            style={{
-              padding: "12px 20px",
-              background: "#e8d5ff",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: "bold"
-            }}
-          >
-            {saving ? "Saving..." : "Add Yarn"}
-          </button>
+        <div className="form-grid">
+          <div>
+            <label className="label" htmlFor="yarn-name">Yarn name</label>
+            <input
+              id="yarn-name"
+              className="input"
+              name="name"
+              value={newYarn.name}
+              onChange={handleChange}
+              placeholder="Red Heart Super Saver"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="yarn-brand">Brand</label>
+            <input
+              id="yarn-brand"
+              className="input"
+              name="brand"
+              value={newYarn.brand}
+              onChange={handleChange}
+              placeholder="Red Heart"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="yarn-color">Color</label>
+            <input
+              id="yarn-color"
+              className="input"
+              name="color"
+              value={newYarn.color}
+              onChange={handleChange}
+              placeholder="Soft white"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="yarn-weight">Weight</label>
+            <YarnWeightSelect
+              value={newYarn.weight}
+              onChange={(value) => setNewYarn({ ...newYarn, weight: value })}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="yarn-yards">Yardage</label>
+            <input
+              id="yarn-yards"
+              className="input"
+              name="yards"
+              type="number"
+              min="0"
+              value={newYarn.yards}
+              onChange={handleChange}
+              placeholder="364"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="yarn-photo">Photo (optional)</label>
+            <input
+              id="yarn-photo"
+              key={fileInputKey}
+              className="input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPhoto(e.target.files[0] || null)}
+            />
+          </div>
         </div>
+
+        {message && <p className="error-text">{message}</p>}
+
+        <button className="btn btn-primary" onClick={addYarn} disabled={saving}>
+          {saving ? "Saving..." : "Add yarn"}
+        </button>
       </div>
 
       {/* YARN LIST */}
-      <h2>Your Yarn</h2>
+      <h2>Your yarn</h2>
 
-      {loading && <p>Loading your yarn...</p>}
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
+      {loading && <p className="muted">Loading your yarn...</p>}
+      {error && <p className="error-text">{error}</p>}
       {!loading && !error && yarns.length === 0 && (
-        <p>No yarn yet. Add your first skein above!</p>
+        <p>Your stash is empty. Add your first skein above.</p>
       )}
 
-      {yarns.map((yarn) => (
-        <div
-          key={yarn.id}
-          style={{
-            display: "flex",
-            gap: "15px",
-            padding: "15px",
-            border: "1px solid #ddd",
-            borderRadius: "10px",
-            marginBottom: "15px"
-          }}
-        >
-          {yarn.photoUrl && (
-            <img
-              src={yarn.photoUrl}
-              alt={yarn.name}
-              style={{
-                width: "100px",
-                height: "100px",
-                objectFit: "cover",
-                borderRadius: "8px"
-              }}
-            />
-          )}
+      <div className="yarn-grid">
+        {yarns.map((yarn) => (
+          <div className="card yarn-card" key={yarn.id}>
+            {yarn.photoUrl ? (
+              <img className="yarn-photo" src={yarn.photoUrl} alt={yarn.name} />
+            ) : (
+              <div className="yarn-photo yarn-photo-empty">
+                <YarnIcon />
+              </div>
+            )}
 
-          <div style={{ flex: 1 }}>
-            <strong>{yarn.name}</strong>
-            <p>Brand: {yarn.brand || "Not set"}</p>
-            <p>Color: {yarn.color || "Not set"}</p>
-            <p>Weight: {weightLabel(yarn.weight)}</p>
-            <p>Yards: {yarn.yards}</p>
+            <h3>{yarn.name}</h3>
+            {yarn.brand && <p className="muted">{yarn.brand}</p>}
+            <p>
+              <strong>Color:</strong> {yarn.color || "Not set"}
+            </p>
+            <p>
+              <strong>Weight:</strong> {weightLabel(yarn.weight)}
+            </p>
+            <p>
+              <strong>Yardage:</strong> {yarn.yards} yd
+            </p>
 
-            <button
-              onClick={() => handleDelete(yarn.id)}
-              style={{
-                padding: "8px 12px",
-                background: "#ffdddd",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer"
-              }}
-            >
-              Delete
-            </button>
+            <div className="card-actions">
+              <button
+                className="btn btn-danger btn-small"
+                onClick={() => setPendingDelete(yarn)}
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this yarn?"
+        message={
+          pendingDelete
+            ? `${pendingDelete.name} will be removed from your stash. This can't be undone.`
+            : ""
+        }
+        confirmLabel="Delete yarn"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

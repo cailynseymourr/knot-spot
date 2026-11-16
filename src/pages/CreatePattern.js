@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { savePattern, getPattern, updatePattern } from "../services/patternsService";
 import YarnWeightSelect from "../components/YarnWeightSelect";
 
@@ -17,6 +17,8 @@ function CreatePattern() {
   const [yardageNeeded, setYardageNeeded] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
+  const [formError, setFormError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   // Each row is an object: { id: number, text: string }
   const [rows, setRows] = useState([{ id: 1, text: "" }]);
@@ -27,8 +29,7 @@ function CreatePattern() {
     getPattern(editId)
       .then((data) => {
         if (!data) {
-          alert("Pattern not found.");
-          navigate("/patterns");
+          setLoadError("Pattern not found.");
           return;
         }
         setPatternName(data.name || "");
@@ -43,24 +44,21 @@ function CreatePattern() {
       })
       .catch((err) => {
         console.error(err);
-        alert("Could not load this pattern.");
-        navigate("/patterns");
+        setLoadError("Could not load this pattern.");
       })
       .finally(() => setLoading(false));
-  }, [editId, navigate]);
+  }, [editId]);
 
-  // ADD ROW
   const addRow = () => {
     setRows((prev) => [...prev, { id: prev.length + 1, text: "" }]);
   };
 
-  // DELETE ROW (re-numbers the remaining rows)
+  // Removes a row and re-numbers the rest
   const deleteRow = (id) => {
     const filtered = rows.filter((row) => row.id !== id);
     setRows(filtered.map((row, index) => ({ ...row, id: index + 1 })));
   };
 
-  // UPDATE ROW TEXT
   const updateRowText = (id, newText) => {
     setRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, text: newText } : row))
@@ -69,8 +67,9 @@ function CreatePattern() {
 
   // SAVE: creates a new pattern, or updates the existing one when editing
   const handleSave = async () => {
+    setFormError("");
     if (!patternName.trim()) {
-      alert("Please enter a pattern name.");
+      setFormError("Give your pattern a name first.");
       return;
     }
 
@@ -97,210 +96,160 @@ function CreatePattern() {
       }
     } catch (err) {
       console.error(err);
-      alert("Could not save the pattern. Check the console for details.");
+      setFormError("Could not save the pattern. Check the console for details.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <p style={{ padding: "40px" }}>Loading pattern...</p>;
+  if (loading) {
+    return (
+      <div className="page page-narrow">
+        <p className="muted">Loading your pattern...</p>
+      </div>
+    );
+  }
+  if (loadError) {
+    return (
+      <div className="page page-narrow">
+        <p className="error-text">{loadError}</p>
+        <Link to="/patterns">Back to patterns</Link>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>
-        {isEditing ? "Edit Pattern" : "Create Pattern"}
-      </h1>
+    <div className="page page-narrow">
+      <h1>{isEditing ? "Edit pattern" : "Write a pattern"}</h1>
+      <p className="page-intro">
+        {isEditing
+          ? "Change anything below, then save."
+          : "Add the details, then write it out row by row."}
+      </p>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Pattern Name
-      </label>
-      <input
-        type="text"
-        value={patternName}
-        onChange={(e) => setPatternName(e.target.value)}
-        placeholder="Enter pattern name"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "30px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+      <div className="card">
+        <h2>Details</h2>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Description
-      </label>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Describe your pattern here..."
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+        <label className="label" htmlFor="pattern-name">Pattern name</label>
+        <input
+          id="pattern-name"
+          className="input"
+          type="text"
+          value={patternName}
+          onChange={(e) => setPatternName(e.target.value)}
+          placeholder="Granny square blanket"
+        />
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Category
-      </label>
-      <select
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      >
-        <option value="">Select a category</option>
-        <option value="Clothing">Clothing</option>
-        <option value="Blanket">Blanket</option>
-        <option value="Amigurumi">Amigurumi</option>
-        <option value="Accessories">Accessories</option>
-        <option value="Home Decor">Home Decor</option>
-        <option value="Filet Crochet">Filet Crochet</option>
-        <option value="Other">Other</option>
-      </select>
+        <label className="label" htmlFor="pattern-description">Description</label>
+        <textarea
+          id="pattern-description"
+          className="input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What is it, and who is it for?"
+        />
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        YouTube Link
-      </label>
-      <input
-        type="text"
-        value={youtubeLink}
-        onChange={(e) => setYoutubeLink(e.target.value)}
-        placeholder="Enter YouTube tutorial link"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+        <label className="label" htmlFor="pattern-category">Category</label>
+        <select
+          id="pattern-category"
+          className="input"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="">Select a category</option>
+          <option value="Clothing">Clothing</option>
+          <option value="Blanket">Blanket</option>
+          <option value="Amigurumi">Amigurumi</option>
+          <option value="Accessories">Accessories</option>
+          <option value="Home Decor">Home Decor</option>
+          <option value="Filet Crochet">Filet Crochet</option>
+          <option value="Other">Other</option>
+        </select>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Yarn Used
-      </label>
-      <input
-        type="text"
-        value={yarnUsed}
-        onChange={(e) => setYarnUsed(e.target.value)}
-        placeholder="Enter yarn brand and name"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "30px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+        <label className="label" htmlFor="pattern-youtube">YouTube tutorial link</label>
+        <input
+          id="pattern-youtube"
+          className="input"
+          type="text"
+          value={youtubeLink}
+          onChange={(e) => setYoutubeLink(e.target.value)}
+          placeholder="https://www.youtube.com/watch?v=..."
+        />
+      </div>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Yarn Weight Needed
-      </label>
-      <YarnWeightSelect value={yarnWeight} onChange={setYarnWeight} />
+      <div className="card">
+        <h2>Yarn</h2>
 
-      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
-        Yardage Needed
-      </label>
-      <input
-        type="number"
-        min="0"
-        value={yardageNeeded}
-        onChange={(e) => setYardageNeeded(e.target.value)}
-        placeholder="Approximate yards needed"
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "30px",
-          borderRadius: "8px",
-          border: "1px solid #ccc"
-        }}
-      />
+        <label className="label" htmlFor="pattern-yarn">Yarn used</label>
+        <input
+          id="pattern-yarn"
+          className="input"
+          type="text"
+          value={yarnUsed}
+          onChange={(e) => setYarnUsed(e.target.value)}
+          placeholder="Brand and name"
+        />
 
-      {/* ROW EDITOR: each row is numbered and editable */}
-      <div>
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "15px"
-            }}
-          >
-            <span style={{ width: "40px", fontWeight: "bold", fontSize: "1.2rem" }}>
-              {row.id}.
-            </span>
-
+        <div className="form-grid">
+          <div>
+            <label className="label">Yarn weight needed</label>
+            <YarnWeightSelect value={yarnWeight} onChange={setYarnWeight} />
+          </div>
+          <div>
+            <label className="label" htmlFor="pattern-yardage">Yardage needed</label>
             <input
+              id="pattern-yardage"
+              className="input"
+              type="number"
+              min="0"
+              value={yardageNeeded}
+              onChange={(e) => setYardageNeeded(e.target.value)}
+              placeholder="Approximate yards"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Rows</h2>
+        {rows.map((row) => (
+          <div className="row-editor-item" key={row.id}>
+            <span className="row-editor-num">{row.id}.</span>
+            <input
+              className="input"
               type="text"
+              aria-label={`Row ${row.id} instructions`}
               value={row.text}
               onChange={(e) => updateRowText(row.id, e.target.value)}
-              placeholder="Write row instructions here..."
-              style={{
-                flex: 1,
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid #ccc"
-              }}
+              placeholder="Write the instructions for this row"
             />
-
             <button
+              className="btn btn-danger btn-small"
               onClick={() => deleteRow(row.id)}
-              style={{
-                marginLeft: "10px",
-                padding: "8px 12px",
-                background: "#ffdddd",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer"
-              }}
+              aria-label={`Remove row ${row.id}`}
             >
-              X
+              Remove
             </button>
           </div>
         ))}
+        <button className="btn btn-secondary btn-small" onClick={addRow}>
+          Add a row
+        </button>
       </div>
 
-      <button
-        onClick={addRow}
-        style={{
-          padding: "12px 20px",
-          background: "#e8d5ff",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontWeight: "bold",
-          marginTop: "10px"
-        }}
-      >
-        + Add Row
-      </button>
+      {formError && <p className="error-text">{formError}</p>}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{
-          padding: "12px 20px",
-          background: "#c8a8ff",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontWeight: "bold",
-          marginTop: "20px",
-          marginLeft: "10px"
-        }}
-      >
-        {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Pattern"}
-      </button>
+      <div className="form-actions">
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : isEditing ? "Save changes" : "Save pattern"}
+        </button>
+        <Link
+          className="btn btn-secondary"
+          to={isEditing ? `/pattern/${editId}` : "/patterns"}
+        >
+          Cancel
+        </Link>
+      </div>
     </div>
   );
 }
