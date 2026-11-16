@@ -1,96 +1,91 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { savePattern, uploadPatternFile } from "../services/patternsService";
+import YarnWeightSelect from "../components/YarnWeightSelect";
 
 function UploadPattern() {
-  // ------------------------------------------------------------
-  // STATE: Holds the uploaded file + pattern name
-  // Later, Firebase will store these values.
-  // ------------------------------------------------------------
   const [patternName, setPatternName] = useState("");
   const [file, setFile] = useState(null);
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [youtubeLink, setYoutubeLink] = useState("")
+  const [youtubeLink, setYoutubeLink] = useState("");
   const [yarnUsed, setYarnUsed] = useState("");
+  const [yarnWeight, setYarnWeight] = useState("");
+  const [yardageNeeded, setYardageNeeded] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [totalRows, setTotalRows] = useState("");
+  const navigate = useNavigate();
 
-  // ------------------------------------------------------------
-  // HANDLES FILE UPLOAD
-  // You can restrict file types later (PDF, images, txt, etc.)
-  // ------------------------------------------------------------
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
-  // ------------------------------------------------------------
-  // HANDLES SAVE BUTTON
-  // Later, this will upload to Firebase Storage + Firestore.
-  // ------------------------------------------------------------
-  const handleSave = () => {
-    alert("Saving pattern… (Firebase will be added later)");
+  // Uploads the file (if any), saves the pattern to Firestore, then opens it
+  const handleSave = async () => {
+    if (!patternName.trim()) {
+      alert("Please enter a pattern name.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let fileUrl = null;
+      if (file) {
+        try {
+          fileUrl = await uploadPatternFile(file);
+        } catch (err) {
+          console.error(err);
+          alert(
+            "The file could not be uploaded (check Firebase Storage). The pattern will be saved without it."
+          );
+        }
+      }
+
+      const id = await savePattern({
+        name: patternName.trim(),
+        description,
+        category,
+        youtubeLink,
+        yarnUsed,
+        yarnWeight,
+        yardageNeeded: Number(yardageNeeded) || 0,
+        rows: [],
+        totalRows: Number(totalRows) || 0,
+        fileUrl
+      });
+      navigate(`/pattern/${id}`);
+    } catch (err) {
+      console.error(err);
+      alert("Could not save the pattern. Check the console for details.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div
-      style={{
-        padding: "40px",          // Change page padding here
-        maxWidth: "600px",        // Change width of the upload form
-        margin: "0 auto"          // Centers the page
-      }}
-    >
-      {/* --------------------------------------------------------
-          PAGE TITLE
-          Change font size, color, spacing here
-      --------------------------------------------------------- */}
-      <h1
-        style={{
-          fontSize: "2.5rem",
-          marginBottom: "20px"
-          // color: "#yourColor"
-        }}
-      >
-        Upload Pattern
-      </h1>
+    <div style={{ padding: "40px", maxWidth: "600px", margin: "0 auto" }}>
+      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>Upload Pattern</h1>
 
-      {/* --------------------------------------------------------
-          PATTERN NAME INPUT
-          You can style the input box later.
-      --------------------------------------------------------- */}
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-          // color: "#yourColor"
-        }}
-      >
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Pattern Name
       </label>
-
       <input
         type="text"
         value={patternName}
         onChange={(e) => setPatternName(e.target.value)}
         placeholder="Enter pattern name"
         style={{
-          width: "100%",            // Input width
-          padding: "10px",          // Input padding
-          marginBottom: "20px",     // Space under input
-          borderRadius: "8px",      // Rounded corners
-          border: "1px solid #ccc"  // Border color
-          // background: "#yourColor"
+          width: "100%",
+          padding: "10px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+          border: "1px solid #ccc"
         }}
       />
 
-      {/*DESCRIPTION */}
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Pattern Description
       </label>
-
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -105,14 +100,7 @@ function UploadPattern() {
         }}
       />
 
-      {/* CATEGORY */}
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Category
       </label>
       <select
@@ -136,17 +124,9 @@ function UploadPattern() {
         <option value="Other">Other</option>
       </select>
 
-      {/* YOUTUBE LINK */}
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         YouTube Tutorial Link
       </label>
-
       <input
         type="text"
         value={youtubeLink}
@@ -160,13 +140,8 @@ function UploadPattern() {
           border: "1px solid #ccc"
         }}
       />
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Yarn Used
       </label>
       <input
@@ -183,54 +158,70 @@ function UploadPattern() {
         }}
       />
 
-      {/* FILE UPLOAD */}
-      <label
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+        Yarn Weight Needed
+      </label>
+      <YarnWeightSelect value={yarnWeight} onChange={setYarnWeight} />
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+        Yardage Needed
+      </label>
+      <input
+        type="number"
+        min="0"
+        value={yardageNeeded}
+        onChange={(e) => setYardageNeeded(e.target.value)}
+        placeholder="Approximate yards needed"
         style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
+          width: "100%",
+          padding: "10px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+          border: "1px solid #ccc"
         }}
-      ></label>
-      {/* --------------------------------------------------------
-          FILE UPLOAD INPUT
-          You can style this or replace it with a custom upload UI.
-      --------------------------------------------------------- */}
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+      />
+    <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+    Total Rows (for progress tracking)
+    </label>
+    <input
+      type="number"
+      min="0"
+      value={totalRows}
+      onChange={(e) => setTotalRows(e.target.value)}
+      placeholder="How many rows is the whole pattern?"
+      style={{
+        width: "100%",
+        padding: "10px",
+        marginBottom: "20px",
+        borderRadius: "8px",
+        border: "1px solid #ccc"
+    }}
+  />
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Upload File
       </label>
-
       <input
         type="file"
         onChange={handleFileChange}
-        style={{
-          marginBottom: "20px"
-          // You can hide this and make a custom upload button later
-        }}
+        style={{ marginBottom: "20px" }}
       />
+      {file && (
+        <p style={{ marginTop: 0, marginBottom: "20px" }}>Selected: {file.name}</p>
+      )}
 
-      {/* --------------------------------------------------------
-          SAVE BUTTON
-          Later this will save to Firebase.
-          You can style colors, hover effects, etc.
-      --------------------------------------------------------- */}
       <button
         onClick={handleSave}
+        disabled={saving}
         style={{
           padding: "12px 20px",
-          background: "#e8d5ff",     // Change button color here
+          background: "#e8d5ff",
           border: "none",
           borderRadius: "8px",
           cursor: "pointer",
           fontWeight: "bold"
         }}
       >
-        Save Pattern
+        {saving ? "Saving..." : "Save Pattern"}
       </button>
     </div>
   );

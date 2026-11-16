@@ -1,45 +1,62 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { listPatterns } from "../services/patternsService";
+import { listAllProgressLogs, summarizeLogs } from "../services/progressService";
 
 function ProgressTracker() {
   const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const projects = [
-    {
-      id: 1,
-      name: "Dragon Plushie",
-      progress: 50,
-      rowsCompleted: "35 / 70",
-      note: "Working on wings",
-      estimatedCompletion: "Oct 15"
-    },
-    {
-      id: 2,
-      name: "Granny Square Blanket",
-      progress: 75,
-      rowsCompleted: "60 / 80",
-      note: "Need more cream yarn",
-      estimatedCompletion: "Oct 8"
-    }
-  ];
+  useEffect(() => {
+    Promise.all([listPatterns(), listAllProgressLogs()])
+      .then(([patterns, logs]) => {
+        const built = patterns
+          .map((p) => {
+            const patternLogs = logs.filter((l) => l.patternId === p.id);
+            const { rowsDone, latest } = summarizeLogs(patternLogs);
+            const totalRows = p.totalRows || (p.rows ? p.rows.length : 0);
+            const progress = totalRows
+              ? Math.min(100, Math.round((rowsDone / totalRows) * 100))
+              : 0;
+            return {
+              id: p.id,
+              name: p.name,
+              rowsDone,
+              totalRows,
+              progress,
+              latest,
+              hasLogs: patternLogs.length > 0
+            };
+          })
+          // Only patterns you've logged progress on count as current projects
+          .filter((p) => p.hasLogs)
+          // Most recently worked-on first
+          .sort((a, b) => b.latest.date.localeCompare(a.latest.date));
+        setProjects(built);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Could not load your projects. Check your Firebase setup.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div
-      style={{
-        padding: "40px",
-        maxWidth: "800px",
-        margin: "0 auto"
-      }}
-    >
-      <h1
-        style={{
-          fontSize: "2.5rem",
-          marginBottom: "30px"
-        }}
-      >
-        Progress Tracker
-      </h1>
+    <div style={{ padding: "40px", maxWidth: "800px", margin: "0 auto" }}>
+      <h1 style={{ fontSize: "2.5rem", marginBottom: "30px" }}>Progress Tracker</h1>
 
       <h2>Current Projects</h2>
+
+      {loading && <p>Loading your projects...</p>}
+      {error && <p style={{ color: "#b00020" }}>{error}</p>}
+      {!loading && !error && projects.length === 0 && (
+        <p>
+          No progress logged yet. Open a pattern and log your first session to see
+          it here.
+        </p>
+      )}
 
       {projects.map((project) => (
         <div
@@ -78,19 +95,18 @@ function ProgressTracker() {
           <p>
             <strong>Progress:</strong> {project.progress}%
           </p>
-
           <p>
-            <strong>Rows Completed:</strong> {project.rowsCompleted}
+            <strong>Rows Completed:</strong> {project.rowsDone} /{" "}
+            {project.totalRows || "?"}
           </p>
-
           <p>
-            <strong>Recent Note:</strong> {project.note}
+            <strong>Last Logged:</strong> {project.latest.date}
           </p>
-
-          <p>
-            <strong>Estimated Completion:</strong>{" "}
-            {project.estimatedCompletion}
-          </p>
+          {project.latest.note && (
+            <p>
+              <strong>Recent Note:</strong> {project.latest.note}
+            </p>
+          )}
         </div>
       ))}
     </div>

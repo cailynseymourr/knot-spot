@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function Home() {
   return (
     <div
@@ -43,14 +45,14 @@ function Home() {
         {/* BUTTONS */}
         <div style={{ display: "flex", gap: "15px" }}>
           {/* PRIMARY BUTTON */}
-          <a href="/patterns" style={buttonStyle}>
+          <Link to="/patterns" style={buttonStyle}>
             Get Started
-          </a>
+          </Link>
 
           {/* SECONDARY BUTTON */}
-          <a href="/ai" style={secondaryButtonStyle}>
+          <Link to="/ai" style={secondaryButtonStyle}>
             Learn More
-          </a>
+          </Link>
         </div>
       </div>
 

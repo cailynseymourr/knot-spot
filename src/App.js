@@ -22,7 +22,8 @@ function App() {
         <Route path="/progress" element={<ProgressTracker />} />
         <Route path="/ai/:id" element={<AIInsights />} />
         <Route path="/ai" element={<AIInsights />} />
-        <Route path="/create" element={<CreatePattern />} />
+        <Route path="/create" element={<CreatePattern key="create" />} />
+        <Route path="/edit/:id" element={<CreatePattern key="edit" />} />
         <Route path="/upload" element={<UploadPattern />} />
         <Route path="/pattern/:id" element={<ViewPattern />} />
       </Routes>

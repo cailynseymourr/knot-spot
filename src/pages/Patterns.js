@@ -1,116 +1,78 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AddPatternMenu from "../components/AddPatternMenu";
+import { listPatterns } from "../services/patternsService";
 
 function Patterns() {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
 
-  // ------------------------------------------------------------
-  // PATTERN DATA (placeholder until Firebase is connected)
-  // You will replace this with real data later.
-  // ------------------------------------------------------------
-  const [patterns, setPatterns] = useState([
-    
-    {
-      id: 1,
-      name: "Granny Square Blanket",               // Pattern name shown in dropdown header
-      description: "Short description", // Shown when dropdown opens
-      details: "More detailed info",    // Shown when dropdown opens
-      open: false                       // Controls dropdown open/close
-    },
-    {
-      id: 2,
-      name: "Ocean Curtain",
-      description: "Another description",
-      details: "More details here",
-      open: false
-    }
-  
-  ]);
+  // Patterns are loaded from Firestore. openId remembers which dropdown is open.
+  const [patterns, setPatterns] = useState([]);
+  const [openId, setOpenId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // ------------------------------------------------------------
-  // FUNCTION: Toggles dropdown open/close
-  // can style the arrow, animation, etc. later.
-  // ------------------------------------------------------------
+  useEffect(() => {
+    listPatterns()
+      .then(setPatterns)
+      .catch((err) => {
+        console.error(err);
+        setError("Could not load patterns. Check your Firebase setup.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Toggles a dropdown open/closed (clicking the open one closes it)
   const toggleDropdown = (id) => {
-    setPatterns((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, open: !p.open } : p
-      )
-    );
+    setOpenId((prev) => (prev === id ? null : id));
   };
 
   return (
-    <div
-      style={{
-        padding: "40px",          // Change page padding here
-        maxWidth: "900px",        // Change page width here
-        margin: "0 auto"          // Centers the page
-      }}
-    >
-      {/* --------------------------------------------------------
-          PAGE TITLE
-          Change font size, color, spacing here
-      --------------------------------------------------------- */}
-      <h1
-        style={{
-          fontSize: "2.5rem",
-          marginBottom: "20px"
-          // color: "#yourColor"
-        }}
-      >
-        Patterns
-      </h1>
+    <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
+      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>Patterns</h1>
 
-      {/* --------------------------------------------------------
-          ADD BUTTON (+)
-          This is your floating circle button from the sketch.
-          You can change size, color, position, shadow, etc.
-      --------------------------------------------------------- */}
+      {/* ADD BUTTON (+) */}
       <button
         style={{
-          position: "fixed",       // Makes it float on screen
-          bottom: "30px",          // Distance from bottom
-          right: "30px",           // Distance from right
-          width: "60px",           // Button size
+          position: "fixed",
+          bottom: "30px",
+          right: "30px",
+          width: "60px",
           height: "60px",
-          borderRadius: "50%",     // Makes it a circle
-          background: "#e8d5ff",   // Change button color here
+          borderRadius: "50%",
+          background: "#e8d5ff",
           border: "none",
-          fontSize: "2rem",        // Size of the +
+          fontSize: "2rem",
           cursor: "pointer",
-          boxShadow: "0 4px 10px rgba(0,0,0,0.2)" // Optional shadow
+          boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
         }}
         onClick={() => setShowMenu(!showMenu)}
       >
         +
       </button>
-      
+
       {showMenu && <AddPatternMenu onClose={() => setShowMenu(false)} />}
 
-      {/* --------------------------------------------------------
-          PATTERN LIST
-          Each pattern is displayed in a card-style box.
-          You can change border, background, spacing, etc.
-      --------------------------------------------------------- */}
+      {loading && <p>Loading patterns...</p>}
+      {error && <p style={{ color: "#b00020" }}>{error}</p>}
+      {!loading && !error && patterns.length === 0 && (
+        <p>No patterns yet. Tap the + button to add your first one!</p>
+      )}
+
+      {/* PATTERN LIST */}
       <div>
         {patterns.map((pattern) => (
           <div
             key={pattern.id}
             style={{
-              border: "1px solid #ddd",     // Change border color
-              borderRadius: "10px",         // Change corner roundness
-              padding: "20px",              // Change card padding
-              marginBottom: "20px",         // Space between cards
-              background: "#fff"            // Change card background
+              border: "1px solid #ddd",
+              borderRadius: "10px",
+              padding: "20px",
+              marginBottom: "20px",
+              background: "#fff"
             }}
           >
-            {/* ----------------------------------------------------
-                PATTERN HEADER (click to open dropdown)
-                can style the arrow, hover effect, spacing, etc.
-            ----------------------------------------------------- */}
             <div
               style={{
                 display: "flex",
@@ -119,47 +81,29 @@ function Patterns() {
               }}
               onClick={() => toggleDropdown(pattern.id)}
             >
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: "1.5rem"
-                  // color: "#yourColor"
-                }}
-              >
-                {pattern.name}
-              </h2>
-
-              {/* Dropdown arrow */}
+              <h2 style={{ margin: 0, fontSize: "1.5rem" }}>{pattern.name}</h2>
               <span style={{ fontSize: "1.5rem" }}>
-                {pattern.open ? "▲" : "▼"}
+                {openId === pattern.id ? "▲" : "▼"}
               </span>
             </div>
 
-            {/* ----------------------------------------------------
-                DROPDOWN CONTENT
-                Only shows when pattern.open === true
-                can style spacing, fonts, colors, etc.
-            ----------------------------------------------------- */}
-            {pattern.open && (
+            {openId === pattern.id && (
               <div style={{ marginTop: "10px" }}>
                 <p>
-                  <strong>Description:</strong> {pattern.description}
+                  <strong>Description:</strong> {pattern.description || "None"}
                 </p>
-
                 <p>
-                  <strong>Details:</strong> {pattern.details}
+                  <strong>Category:</strong> {pattern.category || "None"}
+                </p>
+                <p>
+                  <strong>Yarn:</strong> {pattern.yarnUsed || "None"}
                 </p>
 
-                {/* ------------------------------------------------
-                    VIEW PATTERN BUTTON
-                    Takes user to full pattern page later.
-                    Change colors, borders, hover effects here.
-                ------------------------------------------------- */}
                 <button
                   style={{
                     marginTop: "10px",
                     padding: "10px 15px",
-                    background: "#e8d5ff",   // Change button color
+                    background: "#e8d5ff",
                     border: "none",
                     borderRadius: "8px",
                     cursor: "pointer"
@@ -169,18 +113,13 @@ function Patterns() {
                   View Pattern
                 </button>
 
-                {/* ------------------------------------------------
-                    AI INSIGHT BUTTON
-                    
-                    “GO TO INSIGHT to see which yarn would be best”
-                ------------------------------------------------- */}
                 <button
                   style={{
                     marginTop: "10px",
                     marginLeft: "10px",
                     padding: "10px 15px",
                     background: "#fff",
-                    border: "2px solid #e8d5ff", // Outline color
+                    border: "2px solid #e8d5ff",
                     borderRadius: "8px",
                     cursor: "pointer"
                   }}
@@ -198,4 +137,3 @@ function Patterns() {
 }
 
 export default Patterns;
-

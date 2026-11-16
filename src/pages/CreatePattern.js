@@ -1,101 +1,119 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { savePattern, getPattern, updatePattern } from "../services/patternsService";
+import YarnWeightSelect from "../components/YarnWeightSelect";
 
 function CreatePattern() {
-  // ------------------------------------------------------------
-  // STATE: Pattern name + rows
-  // Later, Firebase will store these values.
-  // ------------------------------------------------------------
+  const { id: editId } = useParams(); // present on /edit/:id, missing on /create
+  const isEditing = Boolean(editId);
+  const navigate = useNavigate();
+
   const [patternName, setPatternName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("");
   const [yarnUsed, setYarnUsed] = useState("");
+  const [yarnWeight, setYarnWeight] = useState("");
+  const [yardageNeeded, setYardageNeeded] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(isEditing);
 
   // Each row is an object: { id: number, text: string }
-  const [rows, setRows] = useState([
-    { id: 1, text: "" } // Start with one empty row
-  ]);
+  const [rows, setRows] = useState([{ id: 1, text: "" }]);
 
-  // ------------------------------------------------------------
+  // When editing, load the saved pattern and fill in the form
+  useEffect(() => {
+    if (!editId) return;
+    getPattern(editId)
+      .then((data) => {
+        if (!data) {
+          alert("Pattern not found.");
+          navigate("/patterns");
+          return;
+        }
+        setPatternName(data.name || "");
+        setDescription(data.description || "");
+        setCategory(data.category || "");
+        setYoutubeLink(data.youtubeLink || "");
+        setYarnUsed(data.yarnUsed || "");
+        setYarnWeight(data.yarnWeight || "");
+        setYardageNeeded(data.yardageNeeded ? String(data.yardageNeeded) : "");
+        const savedRows = data.rows && data.rows.length ? data.rows : [""];
+        setRows(savedRows.map((text, index) => ({ id: index + 1, text })));
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Could not load this pattern.");
+        navigate("/patterns");
+      })
+      .finally(() => setLoading(false));
+  }, [editId, navigate]);
+
   // ADD ROW
-  // Creates a new row with the next number
-  // ------------------------------------------------------------
   const addRow = () => {
-    setRows((prev) => [
-      ...prev,
-      { id: prev.length + 1, text: "" }
-    ]);
+    setRows((prev) => [...prev, { id: prev.length + 1, text: "" }]);
   };
 
-  // ------------------------------------------------------------
-  // DELETE ROW
-  // Removes a row and re-numbers the remaining rows
-  // ------------------------------------------------------------
+  // DELETE ROW (re-numbers the remaining rows)
   const deleteRow = (id) => {
     const filtered = rows.filter((row) => row.id !== id);
-
-    // Re-number rows after deletion
-    const renumbered = filtered.map((row, index) => ({
-      ...row,
-      id: index + 1
-    }));
-
-    setRows(renumbered);
+    setRows(filtered.map((row, index) => ({ ...row, id: index + 1 })));
   };
 
-  // ------------------------------------------------------------
   // UPDATE ROW TEXT
-  // Called when user types in a row
-  // ------------------------------------------------------------
   const updateRowText = (id, newText) => {
     setRows((prev) =>
-      prev.map((row) =>
-        row.id === id ? { ...row, text: newText } : row
-      )
+      prev.map((row) => (row.id === id ? { ...row, text: newText } : row))
     );
   };
 
-  // ------------------------------------------------------------
-  // SAVE PATTERN
-  // Placeholder — Firebase will be added later
-  // ------------------------------------------------------------
-  const handleSave = () => {
-    alert("Saving pattern… (Firebase will be added later)");
+  // SAVE: creates a new pattern, or updates the existing one when editing
+  const handleSave = async () => {
+    if (!patternName.trim()) {
+      alert("Please enter a pattern name.");
+      return;
+    }
+
+    const fields = {
+      name: patternName.trim(),
+      description,
+      category,
+      youtubeLink,
+      yarnUsed,
+      yarnWeight,
+      yardageNeeded: Number(yardageNeeded) || 0,
+      // Save just the instruction text; the view page adds the row numbers
+      rows: rows.map((r) => r.text.trim()).filter(Boolean)
+    };
+
+    setSaving(true);
+    try {
+      if (isEditing) {
+        await updatePattern(editId, fields);
+        navigate(`/pattern/${editId}`);
+      } else {
+        const id = await savePattern({ ...fields, fileUrl: null });
+        navigate(`/pattern/${id}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Could not save the pattern. Check the console for details.");
+    } finally {
+      setSaving(false);
+    }
   };
 
+  if (loading) return <p style={{ padding: "40px" }}>Loading pattern...</p>;
+
   return (
-    <div
-      style={{
-        padding: "40px",          // Change page padding here
-        maxWidth: "700px",        // Change width of editor
-        margin: "0 auto"          // Centers the page
-      }}
-    >
-      {/* --------------------------------------------------------
-          PAGE TITLE
-      --------------------------------------------------------- */}
-      <h1
-        style={{
-          fontSize: "2.5rem",
-          marginBottom: "20px"
-        }}
-      >
-        Create Pattern
+    <div style={{ padding: "40px", maxWidth: "700px", margin: "0 auto" }}>
+      <h1 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>
+        {isEditing ? "Edit Pattern" : "Create Pattern"}
       </h1>
 
-      {/* --------------------------------------------------------
-          PATTERN NAME INPUT
-      --------------------------------------------------------- */}
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Pattern Name
       </label>
-
       <input
         type="text"
         value={patternName}
@@ -109,13 +127,8 @@ function CreatePattern() {
           border: "1px solid #ccc"
         }}
       />
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Description
       </label>
       <textarea
@@ -130,16 +143,10 @@ function CreatePattern() {
           border: "1px solid #ccc"
         }}
       />
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Category
       </label>
-      
       <select
         value={category}
         onChange={(e) => setCategory(e.target.value)}
@@ -160,13 +167,8 @@ function CreatePattern() {
         <option value="Filet Crochet">Filet Crochet</option>
         <option value="Other">Other</option>
       </select>
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         YouTube Link
       </label>
       <input
@@ -182,13 +184,8 @@ function CreatePattern() {
           border: "1px solid #ccc"
         }}
       />
-      <label
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          fontWeight: "bold"
-        }}
-      >
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
         Yarn Used
       </label>
       <input
@@ -204,10 +201,31 @@ function CreatePattern() {
           border: "1px solid #ccc"
         }}
       />
-      {/* --------------------------------------------------------
-          ROW EDITOR
-          Each row is numbered and editable
-      --------------------------------------------------------- */}
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+        Yarn Weight Needed
+      </label>
+      <YarnWeightSelect value={yarnWeight} onChange={setYarnWeight} />
+
+      <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+        Yardage Needed
+      </label>
+      <input
+        type="number"
+        min="0"
+        value={yardageNeeded}
+        onChange={(e) => setYardageNeeded(e.target.value)}
+        placeholder="Approximate yards needed"
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginBottom: "30px",
+          borderRadius: "8px",
+          border: "1px solid #ccc"
+        }}
+      />
+
+      {/* ROW EDITOR: each row is numbered and editable */}
       <div>
         {rows.map((row) => (
           <div
@@ -218,18 +236,10 @@ function CreatePattern() {
               marginBottom: "15px"
             }}
           >
-            {/* Row number */}
-            <span
-              style={{
-                width: "40px",
-                fontWeight: "bold",
-                fontSize: "1.2rem"
-              }}
-            >
+            <span style={{ width: "40px", fontWeight: "bold", fontSize: "1.2rem" }}>
               {row.id}.
             </span>
 
-            {/* Row text input */}
             <input
               type="text"
               value={row.text}
@@ -243,13 +253,12 @@ function CreatePattern() {
               }}
             />
 
-            {/* Delete row button */}
             <button
               onClick={() => deleteRow(row.id)}
               style={{
                 marginLeft: "10px",
                 padding: "8px 12px",
-                background: "#ffdddd", // Change delete color here
+                background: "#ffdddd",
                 border: "none",
                 borderRadius: "8px",
                 cursor: "pointer"
@@ -261,14 +270,11 @@ function CreatePattern() {
         ))}
       </div>
 
-      {/* --------------------------------------------------------
-          ADD ROW BUTTON
-      --------------------------------------------------------- */}
       <button
         onClick={addRow}
         style={{
           padding: "12px 20px",
-          background: "#e8d5ff",   // Change color here
+          background: "#e8d5ff",
           border: "none",
           borderRadius: "8px",
           cursor: "pointer",
@@ -279,14 +285,12 @@ function CreatePattern() {
         + Add Row
       </button>
 
-      {/* --------------------------------------------------------
-          SAVE BUTTON
-      --------------------------------------------------------- */}
       <button
         onClick={handleSave}
+        disabled={saving}
         style={{
           padding: "12px 20px",
-          background: "#c8a8ff",   // Change color here
+          background: "#c8a8ff",
           border: "none",
           borderRadius: "8px",
           cursor: "pointer",
@@ -295,7 +299,7 @@ function CreatePattern() {
           marginLeft: "10px"
         }}
       >
-        Save Pattern
+        {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Pattern"}
       </button>
     </div>
   );
